@@ -1,0 +1,24 @@
+# Datos y análisis
+pandas
+numpy
+
+# Redes y grafos
+networkx
+igraph
+python-igraph
+
+# APIs y HTTP
+requests
+httpx
+python-dotenv
+
+# Bases de datos
+sqlalchemy
+psycopg2-binary
+aiosqlite
+
+# Calidad de código
+black
+flake8
+pytest
+pytest-cov
