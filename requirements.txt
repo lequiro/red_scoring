@@ -17,6 +17,9 @@ sqlalchemy
 psycopg2-binary
 aiosqlite
 
+# Machine learning
+scikit-learn
+
 # Calidad de código
 black
 flake8

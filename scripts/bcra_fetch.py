@@ -34,28 +34,28 @@ warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 # ── CONFIG ───────────────────────────────────────────────────────────────────
 
 BCRA_BASE = "https://api.bcra.gob.ar"
-AC_BASE   = "https://api.argentinacompra.gob.ar"
+AC_BASE = "https://api.argentinacompra.gob.ar"
 
 HEADERS = {
     "User-Agent": "scoring-research/1.0",
-    "Accept":     "application/json",
+    "Accept": "application/json",
 }
 
-DELAY_BCRA = 0.5   # segundos entre requests — no martillar la API
-DELAY_AC   = 0.3
+DELAY_BCRA = 0.5  # segundos entre requests — no martillar la API
+DELAY_AC = 0.3
 
 # ── CONFIG PIPELINE MASIVO (padrón AFIP) ─────────────────────────────────────
 
-MAX_CONCURRENT  = 1     # requests simultáneos a BCRA — 1 = secuencial, sin riesgo de 429
-REQUEST_DELAY   = 1.2   # segundos entre requests (no bajar de 1.0)
-MAX_RETRIES     = 3     # reintentos ante HTTP 429 / 5xx antes de abandonar
-SAVE_EVERY_N    = 50    # flush a disco cada N CUITs procesados
-LOG_EVERY_N     = 100   # log de progreso cada N CUITs procesados
-MAX_CUITS       = 3000  # límite de CUITs a procesar por corrida (None = todos)
+MAX_CONCURRENT = 1  # requests simultáneos a BCRA — 1 = secuencial, sin riesgo de 429
+REQUEST_DELAY = 1.2  # segundos entre requests (no bajar de 1.0)
+MAX_RETRIES = 3  # reintentos ante HTTP 429 / 5xx antes de abandonar
+SAVE_EVERY_N = 50  # flush a disco cada N CUITs procesados
+LOG_EVERY_N = 100  # log de progreso cada N CUITs procesados
+MAX_CUITS = 6000  # límite de CUITs a procesar por corrida (None = todos)
 
-_SCRIPTS_DIR    = Path(__file__).parent
-PADRON_PATH     = _SCRIPTS_DIR / "../data/padron_afip.csv"
-OUTPUT_FILE     = _SCRIPTS_DIR / "../data/deudas_bcra_padron.ndjson"
+_SCRIPTS_DIR = Path(__file__).parent
+PADRON_PATH = _SCRIPTS_DIR / "../data/padron_afip.csv"
+OUTPUT_FILE = _SCRIPTS_DIR / "../data/deudas_bcra_padron.ndjson"
 CHECKPOINT_FILE = _SCRIPTS_DIR / "../data/_checkpoint.txt"
 
 # Fallback: CUITs conocidos para testing rápido sin Argentina Compra
@@ -74,15 +74,16 @@ CUITS_TEST = [
 # IDs de variables BCRA relevantes para scoring
 # Verificar en: GET /estadisticas/v2.0/principalesvariables
 VARIABLES_TASAS = {
-    6:  "Tasa politica monetaria (%)",
-    7:  "BADLAR bancos privados (%)",
-    8:  "TM20 bancos privados (%)",
+    6: "Tasa politica monetaria (%)",
+    7: "BADLAR bancos privados (%)",
+    8: "TM20 bancos privados (%)",
     29: "Tasa activa cartera general BNA (%)",
     30: "Tasa activa Adelantos cta cte BNA (%)",
 }
 
 
 # ── ARGENTINA COMPRA — fuente de CUITs ──────────────────────────────────────
+
 
 def fetch_cuits_argentina_compra(n: int = 100) -> list[str]:
     """
@@ -97,23 +98,23 @@ def fetch_cuits_argentina_compra(n: int = 100) -> list[str]:
     params = {"limit": min(n, 500), "offset": 0}
 
     try:
-        r = requests.get(
-            url, params=params, headers=HEADERS,
-            verify=False, timeout=15
-        )
+        r = requests.get(url, params=params, headers=HEADERS, verify=False, timeout=15)
         r.raise_for_status()
         data = r.json()
 
         # La respuesta puede ser lista directa o envuelta en data/results
         items = (
-            data if isinstance(data, list)
+            data
+            if isinstance(data, list)
             else data.get("data", data.get("results", []))
         )
 
         cuits = []
         for item in items:
             # Posibles claves según versión de la API
-            raw = str(item.get("cuit", item.get("nroCuit", item.get("cuil", "")))).replace("-", "")
+            raw = str(
+                item.get("cuit", item.get("nroCuit", item.get("cuil", "")))
+            ).replace("-", "")
             if len(raw) == 11 and raw.isdigit():
                 cuits.append(raw)
 
@@ -128,6 +129,7 @@ def fetch_cuits_argentina_compra(n: int = 100) -> list[str]:
 
 
 # ── BCRA — Central de Deudores ───────────────────────────────────────────────
+
 
 def fetch_deuda_bcra(cuit: str) -> Optional[dict]:
     """
@@ -201,24 +203,27 @@ def parse_deuda(raw: dict, cuit: str) -> list[dict]:
     for periodo_obj in results.get("periodos", []):
         periodo = periodo_obj.get("periodo", "")
         for ent in periodo_obj.get("entidades", []):
-            rows.append({
-                "cuit":         cuit,
-                "denominacion": denominacion,
-                "periodo":      periodo,
-                "entidad":      ent.get("entidad"),
-                "situacion":    ent.get("situacion"),
-                "monto":        ent.get("monto"),           # miles ARS
-                "diasAtraso":   ent.get("diasAtrasoPago", 0),
-                "refinanciaciones":      ent.get("refinanciaciones", False),
-                "recategorizacionOblig": ent.get("recategorizacionOblig", False),
-                "situacionJuridica":     ent.get("situacionJuridica", False),
-                "enRevision":   ent.get("enRevision", False),
-                "procesoJud":   ent.get("procesoJud", False),
-            })
+            rows.append(
+                {
+                    "cuit": cuit,
+                    "denominacion": denominacion,
+                    "periodo": periodo,
+                    "entidad": ent.get("entidad"),
+                    "situacion": ent.get("situacion"),
+                    "monto": ent.get("monto"),  # miles ARS
+                    "diasAtraso": ent.get("diasAtrasoPago", 0),
+                    "refinanciaciones": ent.get("refinanciaciones", False),
+                    "recategorizacionOblig": ent.get("recategorizacionOblig", False),
+                    "situacionJuridica": ent.get("situacionJuridica", False),
+                    "enRevision": ent.get("enRevision", False),
+                    "procesoJud": ent.get("procesoJud", False),
+                }
+            )
     return rows
 
 
 # ── BCRA — Tasas activas ─────────────────────────────────────────────────────
+
 
 def fetch_variables_bcra() -> pd.DataFrame:
     """
@@ -240,9 +245,7 @@ def fetch_variables_bcra() -> pd.DataFrame:
 
 
 def fetch_serie_variable(
-    id_variable: int,
-    desde: str = "2023-01-01",
-    hasta: str = "2024-12-31"
+    id_variable: int, desde: str = "2023-01-01", hasta: str = "2024-12-31"
 ) -> pd.DataFrame:
     """
     Serie histórica de una variable BCRA por ID.
@@ -261,7 +264,7 @@ def fetch_serie_variable(
         data = r.json()
         df = pd.DataFrame(data.get("results", []))
         if not df.empty:
-            df["fecha"]      = pd.to_datetime(df["fecha"])
+            df["fecha"] = pd.to_datetime(df["fecha"])
             df["idVariable"] = id_variable
         print(f"[BCRA Serie {id_variable}] {len(df)} observaciones")
         return df
@@ -273,7 +276,7 @@ def fetch_serie_variable(
 def fetch_tasas_multiples(
     variables: dict = VARIABLES_TASAS,
     desde: str = "2023-01-01",
-    hasta: str = "2024-12-31"
+    hasta: str = "2024-12-31",
 ) -> pd.DataFrame:
     """
     Descarga series de múltiples variables de tasas y las combina.
@@ -348,16 +351,22 @@ async def _fetch_one(
 
                 if r.status_code in (429, 500, 502, 503, 504):
                     if attempt < max_retries:
-                        wait = (2 ** attempt) + random.uniform(0, 1)
+                        wait = (2**attempt) + random.uniform(0, 1)
                         logger.warning(
                             "[BCRA] %s → HTTP %d, reintento %d/%d en %.1fs",
-                            cuit, r.status_code, attempt + 1, max_retries, wait,
+                            cuit,
+                            r.status_code,
+                            attempt + 1,
+                            max_retries,
+                            wait,
                         )
                         await asyncio.sleep(wait)
                         continue
                     logger.error(
                         "[BCRA] %s → HTTP %d tras %d reintentos — abandono",
-                        cuit, r.status_code, max_retries,
+                        cuit,
+                        r.status_code,
+                        max_retries,
                     )
                     return cuit, None, "error_fatal"
 
@@ -366,16 +375,20 @@ async def _fetch_one(
 
             except httpx.TimeoutException:
                 if attempt < max_retries:
-                    wait = (2 ** attempt) + random.uniform(0, 1)
+                    wait = (2**attempt) + random.uniform(0, 1)
                     logger.warning(
                         "[BCRA] %s → Timeout, reintento %d/%d en %.1fs",
-                        cuit, attempt + 1, max_retries, wait,
+                        cuit,
+                        attempt + 1,
+                        max_retries,
+                        wait,
                     )
                     await asyncio.sleep(wait)
                 else:
                     logger.error(
                         "[BCRA] %s → Timeout definitivo tras %d reintentos",
-                        cuit, max_retries,
+                        cuit,
+                        max_retries,
                     )
                     return cuit, None, "error_fatal"
 
@@ -401,16 +414,19 @@ async def _run_padron_async(
         logger.info("No hay CUITs nuevos para procesar.")
         return
 
-    semaphore  = asyncio.Semaphore(max_concurrent)
+    semaphore = asyncio.Semaphore(max_concurrent)
     start_time = time.monotonic()
-    processed  = 0
-    con_datos  = 0
-    errores    = 0
-    sin_datos  = 0
+    processed = 0
+    con_datos = 0
+    errores = 0
+    sin_datos = 0
 
     logger.info(
         "Iniciando: %d CUITs | concurrencia=%d | reintentos=%d | flush cada %d",
-        total, max_concurrent, max_retries, save_every_n,
+        total,
+        max_concurrent,
+        max_retries,
+        save_every_n,
     )
 
     async with httpx.AsyncClient(headers=HEADERS, verify=False) as client:
@@ -443,19 +459,26 @@ async def _run_padron_async(
             # Log de progreso cada log_every_n CUITs o al terminar
             if processed % log_every_n == 0 or processed == total:
                 elapsed = time.monotonic() - start_time
-                rate    = processed / elapsed if elapsed > 0 else 0
-                eta_s   = (total - processed) / rate if rate > 0 else float("inf")
+                rate = processed / elapsed if elapsed > 0 else 0
+                eta_s = (total - processed) / rate if rate > 0 else float("inf")
                 eta_str = f"{eta_s / 60:.1f} min" if eta_s < float("inf") else "?"
                 logger.info(
                     "Progreso: %d/%d (%.1f%%) | ✓ con datos: %d | sin datos: %d | errores: %d | ETA: %s",
-                    processed, total, processed / total * 100,
-                    con_datos, sin_datos, errores, eta_str,
+                    processed,
+                    total,
+                    processed / total * 100,
+                    con_datos,
+                    sin_datos,
+                    errores,
+                    eta_str,
                 )
 
     elapsed_total = time.monotonic() - start_time
     logger.info(
         "Pipeline terminado en %.1f min — %d CUITs procesados, %d errores definitivos",
-        elapsed_total / 60, processed, errores,
+        elapsed_total / 60,
+        processed,
+        errores,
     )
 
 
@@ -493,17 +516,18 @@ def run_pipeline_padron(
         log_every_n     : log de progreso cada N CUITs
         max_cuits       : límite de CUITs a procesar en esta corrida (None = todos)
     """
-    df_padron  = pd.read_csv(padron_path, dtype={"cuit": str})
-    all_cuits  = df_padron["cuit"].dropna().unique().tolist()
+    df_padron = pd.read_csv(padron_path, dtype={"cuit": str})
+    all_cuits = df_padron["cuit"].dropna().unique().tolist()
     logger.info("[Padrón] %d CUITs únicos en %s", len(all_cuits), padron_path.name)
 
-    done         = _load_checkpoint(checkpoint_file)
+    done = _load_checkpoint(checkpoint_file)
     cuits_nuevos = [c for c in all_cuits if c not in done]
     if max_cuits is not None:
         cuits_nuevos = cuits_nuevos[:max_cuits]
     logger.info(
         "[Checkpoint] %d ya procesados → procesando %d CUITs en esta corrida",
-        len(done), len(cuits_nuevos),
+        len(done),
+        len(cuits_nuevos),
     )
 
     asyncio.run(
@@ -520,6 +544,7 @@ def run_pipeline_padron(
 
 
 # ── PIPELINE PRINCIPAL ───────────────────────────────────────────────────────
+
 
 def run_pipeline(
     n_cuits: int = 50,
@@ -568,8 +593,10 @@ def run_pipeline(
             errores += 1
 
         if (i + 1) % 10 == 0:
-            print(f"  {i+1:>3}/{len(cuits)} | filas: {len(rows):>5} | "
-                  f"sin datos: {sin_datos} | errores: {errores}")
+            print(
+                f"  {i + 1:>3}/{len(cuits)} | filas: {len(rows):>5} | "
+                f"sin datos: {sin_datos} | errores: {errores}"
+            )
 
         time.sleep(DELAY_BCRA)
 
@@ -600,6 +627,7 @@ def run_pipeline(
 
 
 # ── DIAGNÓSTICO ──────────────────────────────────────────────────────────────
+
 
 def describe_deudas(df: pd.DataFrame) -> None:
     """Resumen rápido del DataFrame de deudas para inspección inicial."""
@@ -633,6 +661,7 @@ def quick_test(cuit: str = "30500010912") -> None:
     raw = fetch_deuda_bcra(cuit)
     if raw:
         import json
+
         print(json.dumps(raw, indent=2, ensure_ascii=False)[:2000])
     else:
         print("Sin datos (404 o error de red)")
@@ -646,7 +675,9 @@ if __name__ == "__main__":
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%H:%M:%S",
     )
-    logging.getLogger("httpx").setLevel(logging.WARNING)  # silencia el log de cada request
+    logging.getLogger("httpx").setLevel(
+        logging.WARNING
+    )  # silencia el log de cada request
 
     # Pipeline masivo desde padrón AFIP (retoma automáticamente si se interrumpe):
     run_pipeline_padron()
