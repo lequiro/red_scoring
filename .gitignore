@@ -9,7 +9,12 @@ dist/
 build/
 .pytest_cache/
 .coverage
-data/
+# datos reales ignorados, pero se versionan el README y el sample sintético
+data/*
+!data/.gitkeep
+!data/README.md
+!data/sample/
+output/
 notebooks/.ipynb_checkpoints/
 .vscode/
 *.DS_Store

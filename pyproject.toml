@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "red-scoring"
+version = "0.1.0"
+description = "Credit scoring alternativo basado en redes complejas con datos públicos argentinos"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Luis" }]
+
+dependencies = [
+    "networkx>=3.2",
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "scipy>=1.11",
+    "scikit-learn>=1.4",
+    "matplotlib>=3.8",
+    "requests>=2.31",
+    "httpx>=0.26",
+    "pyarrow>=14.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "flake8>=7.0", "black>=24.0"]
+
+# entry points: permiten correr el pipeline como comandos tras `pip install -e .`
+[project.scripts]
+red-scoring-graph       = "red_scoring.graph:main"
+red-scoring-communities = "red_scoring.communities:main"
+red-scoring-features    = "red_scoring.features:main"
+red-scoring-model       = "red_scoring.model:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["red_scoring*"]
+
+[tool.black]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
