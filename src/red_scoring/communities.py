@@ -114,8 +114,8 @@ def main():
     print(f"GEXF enriquecido: {config.RED_MONTO_COMUNIDADES_GEXF}")
 
     df = nodos_a_dataframe(G)
-    df_top = stats_por_comunidad(df, comunidades)
-    plotear_histogramas(df_top)
+    df_top = stats_por_comunidad(df, comunidades, STATS_CSV)
+    plotear_histogramas(df_top, HISTOGRAMAS_PNG)
 
 
 if __name__ == "__main__":
