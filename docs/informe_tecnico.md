@@ -1,4 +1,4 @@
-# red_scoring — Scoring crediticio por redes complejas
+# Graph scoring
 
 ### Tasas más justas para quienes no tienen historial crediticio
 
